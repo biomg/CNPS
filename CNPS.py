@@ -10,7 +10,7 @@ import math
 
 ep_number = 1
 epeach = 1000
-dropouts = [0.98]
+dropouts = [0.98] #0.99
 momentums = [0.99]
 weight_decays = [5e-3]
 batchs = [20]
@@ -118,14 +118,14 @@ for batch_size in batchs:
 
                                 def __init__(self):
                                     super(CNPS, self).__init__()
-                                    self.W_q = nn.Linear(1, 1)
-                                    self.W_k = nn.Linear(1, 1)
-                                    self.W_v = nn.Linear(1, 1)
+                                    self.W_q = nn.Linear(2, 2)
+                                    self.W_k = nn.Linear(2, 2)
+                                    self.W_v = nn.Linear(2, 2)
                                     self.softmax = nn.Softmax(dim=-1)
-                                    self.conv1 = nn.Conv1d(9229, first_channel, kernel_size=(2,), stride=1)
+                                    self.conv1 = nn.Conv1d(9229, first_channel, kernel_size=(3,), stride=1)
                                     nn.init.xavier_normal_(self.conv1.weight, gain=1)
 
-                                    self.conv2 = nn.Conv1d(9229, second_channel, kernel_size=(2,), stride=1)
+                                    self.conv2 = nn.Conv1d(9229, second_channel, kernel_size=(3,), stride=1)
                                     nn.init.xavier_normal_(self.conv2.weight, gain=1)
 
                                     self.Flatten = nn.Flatten()
@@ -143,10 +143,9 @@ for batch_size in batchs:
                                 def forward(self, input):
                                     # food_conv1 = self.maxpool1(self.dropout(self.BatchNorm(self.relu(self.food_conv1(input)))).squeeze(3))
                                     input=input.reshape(-1,9229*3)
-                                    input=input[:,0:9229*2]
-                            
-                                    input=input.reshape(-1,9229,2)
 
+
+                                    input=input.reshape(-1,9229,3)
                                     conv1 = self.conv1(input)
                                     conv1 = self.relu(conv1)
                                     conv1 = self.BatchNorm1(conv1)
@@ -162,8 +161,12 @@ for batch_size in batchs:
                                     all = torch.cat([conv1, conv2], 1).squeeze(2)
 
                                     all = self.linear1(all)
+                                    # np.save("l_w",self.linear1.weight.data.cpu().detach().numpy())
+                                    # np.save("c1_w",self.conv1.weight.data.cpu().detach().numpy())
+                                    # np.save("c2_w",self.conv2.weight.data.cpu().detach().numpy())
 
                                     return all
+
 
 
                             train_loader = DataLoader(dataset=train_mydata, batch_size=batch_size, shuffle=True)
@@ -197,7 +200,7 @@ for batch_size in batchs:
                                 model_stack = []
                                 model_stack_id = 0
                                 return_number = 5
-
+                                best_l=100000000
                                 for i in range(epeach):
 
                                     lossnumber3 = 0.0
@@ -226,7 +229,7 @@ for batch_size in batchs:
                                         all_accuracy2 = all_accuracy2 + accuracy2
 
                                     train_scheduler.step()
-
+                                    print('train-accuracy:{}'.format(all_accuracy2.item() /807))
                                     model.eval()
                                     with torch.no_grad():
                                         for data in validate_loader:
@@ -250,12 +253,13 @@ for batch_size in batchs:
                                     auc_number, aupr = caculateAUC(auc_out, auc_label)
 
                                     arr.append(all_accuracy.item() / 204)
-                                    if auc_number > best_auc:
+                                    if lossnumber < best_l:
                                         best_accuracy = (all_accuracy.item() / 204)
-                                        best_auc = auc_number
+                                        best_l = lossnumber
                                         best_model=model.state_dict()
+                                        torch.save(best_model,"model.ckpt")
 
-
+                                    print('val-accuracy:{},auc:{}'.format(all_accuracy.item() / 102,auc_number))
 
                                     train_scheduler.step()
                                 model.load_state_dict(best_model)
