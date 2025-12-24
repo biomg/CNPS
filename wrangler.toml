@@ -1,0 +1,4 @@
+# wrangler.toml
+name = "cnps"  # 替换为你的 Worker 名称
+main = "src/index.js"      # 入口文件路径
+compatibility_date = "2025-12-24"
